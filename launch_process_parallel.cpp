@@ -107,7 +107,7 @@ int hpx_main(boost::program_options::variables_map &vm)
                       std::to_string(HPX_CONNECTING_IP_PORT - port - i));
 
         // Instruct new locality to connect back on startup using the given name.
-        env.push_back("HPX_ON_STARTUP_WAIT_ON_LATCH=launch_process");
+        env.push_back("HPX_ON_STARTUP_WAIT_ON_LATCH=launch_process" + std::to_string(i));
 
         // launch test executable
         process::child c = process::execute(
@@ -117,13 +117,13 @@ int hpx_main(boost::program_options::variables_map &vm)
                 process::set_env(env),
                 process::start_in_dir(base_dir.string()),
                 process::throw_on_error(),
-                process::wait_on_latch("launch_process")   // same as above!
+                process::wait_on_latch("launch_process" + std::to_string(i))   // same as above!
         );
         proc.push_back(c);
 
         // wait for the HPX locality to be up and running
         // without it the process never terminates
-        c.wait();
+//        c.wait();
 
     }
 
@@ -141,6 +141,9 @@ int hpx_main(boost::program_options::variables_map &vm)
             // register the component instance with AGAS
             t.register_as("test_server" + std::to_string(i));       // same as --component=<> above
             hpx::cout << "component " << i << " created \n" << hpx::flush;
+
+            proc[i].wait();
+            HPX_TEST(proc[i]);
 
             // the launched executable should have connected back as a new locality
             hpx::cout << "number of lacalities:  " << hpx::find_all_localities().size() << "\n" << hpx::flush;
