@@ -42,5 +42,17 @@ add_hpx_executable(hello_world
         FOLDER
         COMPONENT_DEPENDENCIES iostreams)
 
+add_subdirectory(components)
 
+add_hpx_executable(launch_process_test
+        SOURCES launch_process.cpp
+        DEPENDENCIES iostreams_component process_component
+        launch_process_test_server_component
+        HPX_PREFIX ${HPX_BUILD_PREFIX}
+        FOLDER)
 
+add_hpx_executable(launched_process_test
+        SOURCES launched_process.cpp
+        HPX_PREFIX ${HPX_BUILD_PREFIX}
+        FOLDER
+        COMPONENT_DEPENDENCIES launch_process_test_server)
