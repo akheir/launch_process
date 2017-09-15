@@ -51,6 +51,13 @@ add_hpx_executable(launch_process_test
         HPX_PREFIX ${HPX_BUILD_PREFIX}
         FOLDER)
 
+add_hpx_executable(launch_process_parallel_test
+        SOURCES launch_process_parallel.cpp
+        DEPENDENCIES iostreams_component process_component
+        launch_process_test_server_component
+        HPX_PREFIX ${HPX_BUILD_PREFIX}
+        FOLDER)
+
 add_hpx_executable(launched_process_test
         SOURCES launched_process.cpp
         HPX_PREFIX ${HPX_BUILD_PREFIX}

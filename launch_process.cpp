@@ -7,6 +7,7 @@
 #include <hpx/hpx.hpp>
 #include <hpx/include/process.hpp>
 #include <hpx/util/lightweight_test.hpp>
+#include <hpx/include/iostreams.hpp>
 
 #include <components/launch_process_test_server.hpp>
 
@@ -68,83 +69,85 @@ int hpx_main(boost::program_options::variables_map &vm)
         std::cout << "using launch (default): " << exe << std::endl;
     }
 
-    // set up command line for launched executable
-    std::vector<std::string> args;
-    args.push_back(exe.string());
-    args.push_back("--exit_code=42");
-    args.push_back("--component=test_server");
-    args.push_back("--set_message=accessed");
-    args.push_back("--hpx:ignore-batch-env");
+    for (int i = 0; i < 10; i++) {
 
-    // set up environment for launched executable
-    std::vector<std::string> env = get_environment();   // current environment
+        // set up command line for launched executable
+        std::vector<std::string> args;
+        args.push_back(exe.string());
+        args.push_back("--exit_code=42");
+        args.push_back("--component=test_server" + std::to_string(i));
+        args.push_back("--set_message=accessed");
+        args.push_back("--hpx:ignore-batch-env");
 
-    // Pass along the console parcelport address
-    env.push_back("HPX_AGAS_SERVER_ADDRESS=" +
-        hpx::get_config_entry("hpx.agas.address", HPX_INITIAL_IP_ADDRESS));
-    env.push_back("HPX_AGAS_SERVER_PORT=" +
-        hpx::get_config_entry("hpx.agas.port",
-            std::to_string(HPX_INITIAL_IP_PORT)));
+        // set up environment for launched executable
+        std::vector<std::string> env = get_environment();   // current environment
 
-    // Pass along the parcelport address which should be used by the launched
-    // executable
+        // Pass along the console parcelport address
+        env.push_back("HPX_AGAS_SERVER_ADDRESS=" +
+                      hpx::get_config_entry("hpx.agas.address", HPX_INITIAL_IP_ADDRESS));
+        env.push_back("HPX_AGAS_SERVER_PORT=" +
+                      hpx::get_config_entry("hpx.agas.port",
+                                            std::to_string(HPX_INITIAL_IP_PORT)));
 
-    // The launched executable will run on the same host as this test
-    int port = 42;  // each launched HPX locality needs to be assigned a
-                    // unique port
+        // Pass along the parcelport address which should be used by the launched
+        // executable
 
-    env.push_back("HPX_PARCEL_SERVER_ADDRESS=" +
-        hpx::get_config_entry("hpx.agas.address", HPX_INITIAL_IP_ADDRESS));
-    env.push_back("HPX_PARCEL_SERVER_PORT=" +
-        std::to_string(HPX_CONNECTING_IP_PORT - port));
+        // The launched executable will run on the same host as this test
+        int port = 42;  // each launched HPX locality needs to be assigned a
+        // unique port
 
-    // Instruct new locality to connect back on startup using the given name.
-    env.push_back("HPX_ON_STARTUP_WAIT_ON_LATCH=launch_process");
+        env.push_back("HPX_PARCEL_SERVER_ADDRESS=" +
+                      hpx::get_config_entry("hpx.agas.address", HPX_INITIAL_IP_ADDRESS));
+        env.push_back("HPX_PARCEL_SERVER_PORT=" +
+                      std::to_string(HPX_CONNECTING_IP_PORT - port - i));
 
-    // launch test executable
-    process::child c = process::execute(
-            hpx::find_here(),
-            process::run_exe(exe.string()),
-            process::set_args(args),
-            process::set_env(env),
-            process::start_in_dir(base_dir.string()),
-            process::throw_on_error(),
-            process::wait_on_latch("launch_process")   // same as above!
+        // Instruct new locality to connect back on startup using the given name.
+        env.push_back("HPX_ON_STARTUP_WAIT_ON_LATCH=launch_process");
+
+        // launch test executable
+        process::child c = process::execute(
+                hpx::find_here(),
+                process::run_exe(exe.string()),
+                process::set_args(args),
+                process::set_env(env),
+                process::start_in_dir(base_dir.string()),
+                process::throw_on_error(),
+                process::wait_on_latch("launch_process")   // same as above!
         );
 
-    {
-        // now create an instance of the test_server component
-        hpx::components::client<launch_process::test_server> t =
-            hpx::new_<launch_process::test_server>(hpx::find_here());
+        {
+            // now create an instance of the test_server component
+            hpx::components::client<launch_process::test_server> t =
+                    hpx::new_<launch_process::test_server>(hpx::find_here());
 
-        hpx::future<std::string> f =
-            hpx::async(launch_process_get_message_action(), t);
-        HPX_TEST_EQ(f.get(), std::string("initialized"));
+            hpx::future<std::string> f =
+                    hpx::async(launch_process_get_message_action(), t);
+            HPX_TEST_EQ(f.get(), std::string("initialized"));
 
-        // register the component instance with AGAS
-        t.register_as("test_server");       // same as --component=<> above
+            // register the component instance with AGAS
+            t.register_as("test_server" + std::to_string(i));       // same as --component=<> above
 
-        // wait for the HPX locality to be up and running
-        c.wait();
-        HPX_TEST(c);
+            // wait for the HPX locality to be up and running
+            c.wait();
+            HPX_TEST(c);
 
-        // the launched executable should have connected back as a new locality
-        HPX_TEST_EQ(hpx::find_all_localities().size(), std::size_t(2));
+            // the launched executable should have connected back as a new locality
+            HPX_TEST_EQ(hpx::find_all_localities().size(), std::size_t(2));
 
-        // wait for it to exit, we know it returns 42 (see --exit_code=<> above)
-        int exit_code = c.wait_for_exit(hpx::launch::sync);
-        HPX_TEST_EQ(exit_code, 42);
+            // wait for it to exit, we know it returns 42 (see --exit_code=<> above)
+            int exit_code = c.wait_for_exit(hpx::launch::sync);
+            HPX_TEST_EQ(exit_code, 42);
 
-        // make sure the launched process has set the message in the component
-        // this should be the same as --set_message=<> above
-        f = hpx::async(launch_process_get_message_action(), t);
-        HPX_TEST_EQ(f.get(), std::string("accessed"));
-
-    }   // release the component
+            // make sure the launched process has set the message in the component
+            // this should be the same as --set_message=<> above
+            f = hpx::async(launch_process_get_message_action(), t);
+            HPX_TEST_EQ(f.get(), std::string("accessed"));
+            hpx::cout << "Process " << i << " finished \n" << hpx::flush;
+        }   // release the component
+    }
 
     // the new locality should have disconnected now
     HPX_TEST_EQ(hpx::find_all_localities().size(), std::size_t(1));
-
     return hpx::finalize();
 }
 
