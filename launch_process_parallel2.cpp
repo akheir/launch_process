@@ -145,16 +145,17 @@ int hpx_main(boost::program_options::variables_map& vm)
     // set up environment for launched executable
     std::vector<std::string> env = get_environment();    // current environment
 
+    // create the first process
     process::child c0 = launch_proc(0, exe, base_dir, env);
 
-    // attach second job to first one
+    // attach second process to first one
     hpx::future<int> r0 = c0.wait_for_exit();
     hpx::future<process::child> c1 =
         r0.then([exe, base_dir, env](hpx::future<int> r) {
             return launch_proc(1, exe, base_dir, env);
         });
 
-    // attach third job to second one
+    // attach third process to second one
     hpx::future<int> r1 =
         c1.then([exe, base_dir, env](hpx::future<process::child> c) {
             return c.get().wait_for_exit();
@@ -165,22 +166,38 @@ int hpx_main(boost::program_options::variables_map& vm)
         });
 
     typedef hpx::components::client<launch_process::test_server> job_type;
-    job_type t0 = create_job(0);
-    job_type t1 = create_job(1);
-    job_type t2 = create_job(2);
+
+//    job_type t0 = create_job(0);
+//    job_type t1 = create_job(1);
+//    job_type t2 = create_job(2);
+//
+//
+    std::vector<job_type> jobs;
+//    jobs.push_back(t0);
+//    jobs.push_back(t1);
+//    jobs.push_back(t2);
+
+    for (int i =0; i < 3; i++)
+        jobs.push_back(create_job(i));
 
     hpx::future<int> exit_code = c2.get().wait_for_exit();
     HPX_TEST_EQ(exit_code.get(), 42);
 
-    hpx::future<std::string> f0 =
-        hpx::async(launch_process_get_message_action(), t0);
-    HPX_TEST_EQ(f0.get(), std::string("accessed"));
-    hpx::future<std::string> f1 =
-        hpx::async(launch_process_get_message_action(), t1);
-    HPX_TEST_EQ(f1.get(), std::string("accessed"));
-    hpx::future<std::string> f2 =
-        hpx::async(launch_process_get_message_action(), t2);
-    HPX_TEST_EQ(f2.get(), std::string("accessed"));
+//    hpx::future<std::string> f0 =
+//        hpx::async(launch_process_get_message_action(), t0);
+//    HPX_TEST_EQ(f0.get(), std::string("accessed"));
+//    hpx::future<std::string> f1 =
+//        hpx::async(launch_process_get_message_action(), t1);
+//    HPX_TEST_EQ(f1.get(), std::string("accessed"));
+//    hpx::future<std::string> f2 =
+//        hpx::async(launch_process_get_message_action(), t2);
+//    HPX_TEST_EQ(f2.get(), std::string("accessed"));
+
+    for (auto t:jobs) {
+        hpx::future<std::string> f0 =
+                hpx::async(launch_process_get_message_action(), t);
+        HPX_TEST_EQ(f0.get(), std::string("accessed"));
+    }
 
     return hpx::finalize();
 }

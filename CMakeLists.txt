@@ -66,7 +66,7 @@ add_hpx_executable(launch_process_parallel2_test
         FOLDER)
 
 add_hpx_executable(launch_process_parallel3_test
-        SOURCES launch_process_parallel2.cpp
+        SOURCES launch_process_parallel3.cpp
         DEPENDENCIES iostreams_component process_component
         launch_process_test_server_component
         HPX_PREFIX ${HPX_BUILD_PREFIX}

@@ -18,7 +18,6 @@
 #include <string>
 #include <vector>
 
-
 ///////////////////////////////////////////////////////////////////////////////
 inline int get_arraylen(char** arr)
 {
@@ -145,62 +144,48 @@ int hpx_main(boost::program_options::variables_map& vm)
 
     // set up environment for launched executable
     std::vector<std::string> env = get_environment();    // current environment
+    constexpr int num_of_jobs = 3;
+    std::vector<hpx::future<process::child> > procs;
 
-    constexpr int number_of_par_jobs = 1;
-    std::vector<hpx::future<process::child> > proc;
-    std::vector<hpx::components::client<launch_process::test_server> > jobs;
-//    for (int i = 0; i < number_of_par_jobs; i++){
-    int i = 0;
-    process::child c1 = launch_proc(0, exe, base_dir, env);
+    for (int i = 0; i < num_of_jobs; i+=3) {
+        // create the first process
+        process::child c0 = launch_proc(i, exe, base_dir, env);
 
-    // attach second job to first one
-    hpx::future<int> r1 = c1.wait_for_exit();
-    hpx::future<process::child> c2 = r1.then([i, exe, base_dir, env](hpx::future<int> r) {
-        return launch_proc(1, exe, base_dir, env);
-    });
+        // attach second process to first one
+        hpx::future<int> r0 = c0.wait_for_exit();
+        hpx::future<process::child> c1 =
+                r0.then([i, exe, base_dir, env](hpx::future<int> r) {
+                    return launch_proc(i + 1, exe, base_dir, env);
+                });
 
-    // attach third job to second one
-    hpx::future<int> r2 = c2.then([exe, base_dir, env](hpx::future<process::child> c) {
-        return c.get().wait_for_exit();
-    });
-    hpx::future<process::child> c3 = r2.then([i, exe, base_dir, env](hpx::future<int> r) {
-        return launch_proc(2, exe, base_dir, env);
-    });
+        // attach third process to second one
+        hpx::future<int> r1 =
+                c1.then([i, exe, base_dir, env](hpx::future<process::child> c) {
+                    return c.get().wait_for_exit();
+                });
+        hpx::future<process::child> c2 =
+                r1.then([i, exe, base_dir, env](hpx::future<int> r) {
+                    return launch_proc(i + 2, exe, base_dir, env);
+                });
+        procs.push_back(std::move(c2));
+    }
 
-//        proc.push_back(c3);
-//    }
+    typedef hpx::components::client<launch_process::test_server> job_type;
+    std::vector<job_type> jobs;
+    for (int i =0; i < num_of_jobs; i++)
+        jobs.push_back(create_job(i));
 
+    for (auto && c : procs) {
+        hpx::future<int> exit_code = c.get().wait_for_exit();
+        HPX_TEST_EQ(exit_code.get(), 42);
+    }
 
-//    create_job(0);
-//    create_job(1);
-//    create_job(2);
-//    hpx::components::client<launch_process::test_server> t0 = create_job(0);
-//    hpx::components::client<launch_process::test_server> t1 = create_job(1);
-//    hpx::components::client<launch_process::test_server> t2 = create_job(2);
+    for (auto t:jobs) {
+        hpx::future<std::string> f0 =
+                hpx::async(launch_process_get_message_action(), t);
+        HPX_TEST_EQ(f0.get(), std::string("accessed"));
+    }
 
-    typedef hpx::components::client<launch_process::test_server> vec_type;
-    std::vector<vec_type> a;
-    hpx::components::client<launch_process::test_server> t0 = create_job(0);
-    //a.push_back(t0);
-    t0 = create_job(1);
-    //a.push_back(t0);
-    t0 = create_job(2);
-    //a.push_back(t0);
-//    for (int i = 0; i < number_of_par_jobs * 3; i++) {
-//        hpx::components::client<launch_process::test_server> t = create_job(i);
-//        jobs.push_back(create_job(i));
-//    }
-
-//    for(hpx::future<process::child> c : proc) {
-    hpx::future<int> exit_code = c3.get().wait_for_exit();
-    HPX_TEST_EQ(exit_code.get(), 42);
-//    }
-
-//    for(auto t: jobs) {
-//        hpx::future<std::string> f =
-//                hpx::async(launch_process_get_message_action(), t);
-//        HPX_TEST_EQ(f.get(), std::string("accessed"));
-//    }
     return hpx::finalize();
 }
 
