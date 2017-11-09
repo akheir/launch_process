@@ -50,7 +50,7 @@ namespace process = hpx::components::process;
 namespace fs = boost::filesystem;
 
 process::child launch_proc(int proc_number, fs::path exe, fs::path base_dir,
-                           std::vector<std::string> env)
+    std::vector<std::string> env)
 {
     // set up command line for launched executable
     std::vector<std::string> args;
@@ -65,10 +65,10 @@ process::child launch_proc(int proc_number, fs::path exe, fs::path base_dir,
 
     // Pass along the console parcelport address
     env.push_back("HPX_AGAS_SERVER_ADDRESS=" +
-                  hpx::get_config_entry("hpx.agas.address", HPX_INITIAL_IP_ADDRESS));
+        hpx::get_config_entry("hpx.agas.address", HPX_INITIAL_IP_ADDRESS));
     env.push_back("HPX_AGAS_SERVER_PORT=" +
-                  hpx::get_config_entry(
-                          "hpx.agas.port", std::to_string(HPX_INITIAL_IP_PORT)));
+        hpx::get_config_entry(
+            "hpx.agas.port", std::to_string(HPX_INITIAL_IP_PORT)));
 
     // Pass along the parcelport address which should be used by the launched
     // executable
@@ -78,23 +78,23 @@ process::child launch_proc(int proc_number, fs::path exe, fs::path base_dir,
     // unique port
 
     env.push_back("HPX_PARCEL_SERVER_ADDRESS=" +
-                  hpx::get_config_entry("hpx.agas.address", HPX_INITIAL_IP_ADDRESS));
+        hpx::get_config_entry("hpx.agas.address", HPX_INITIAL_IP_ADDRESS));
     env.push_back("HPX_PARCEL_SERVER_PORT=" +
-                  std::to_string(HPX_CONNECTING_IP_PORT - port - proc_number));
+        std::to_string(HPX_CONNECTING_IP_PORT - port - proc_number));
 
     // Instruct new locality to connect back on startup using the given name.
     env.push_back("HPX_ON_STARTUP_WAIT_ON_LATCH=launch_process" +
-                  std::to_string(proc_number));
+        std::to_string(proc_number));
 
     // launch test executable
     process::child c = process::execute(hpx::find_here(),
-                                        process::run_exe(exe.string()),
-                                        process::set_args(args),
-                                        process::set_env(env),
-                                        process::start_in_dir(base_dir.string()),
-                                        process::throw_on_error(),
-                                        process::wait_on_latch(
-                                                "launch_process" + std::to_string(proc_number))    // same as above!
+        process::run_exe(exe.string()),
+        process::set_args(args),
+        process::set_env(env),
+        process::start_in_dir(base_dir.string()),
+        process::throw_on_error(),
+        process::wait_on_latch(
+            "launch_process" + std::to_string(proc_number))    // same as above!
     );
 
     c.wait();
@@ -107,15 +107,15 @@ hpx::components::client<launch_process::test_server> create_job(int job_number)
 {
     // now create an instance of the test_server component
     hpx::components::client<launch_process::test_server> t =
-            hpx::new_<launch_process::test_server>(hpx::find_here());
+        hpx::new_<launch_process::test_server>(hpx::find_here());
 
     hpx::future<std::string> f =
-            hpx::async(launch_process_get_message_action(), t);
+        hpx::async(launch_process_get_message_action(), t);
     HPX_TEST_EQ(f.get(), std::string("initialized"));
 
     // register the component instance with AGAS
     t.register_as("test_server" +
-                  std::to_string(job_number));    // same as --component=<> above
+        std::to_string(job_number));    // same as --component=<> above
     std::cout << "component " << job_number << " created \n" << std::endl;
 
     return t;
@@ -145,44 +145,47 @@ int hpx_main(boost::program_options::variables_map& vm)
     // set up environment for launched executable
     std::vector<std::string> env = get_environment();    // current environment
     constexpr int num_of_jobs = 3;
-    std::vector<hpx::future<process::child> > procs;
+    std::vector<hpx::future<process::child>> procs;
 
-    for (int i = 0; i < num_of_jobs; i+=3) {
+    for (int i = 0; i < num_of_jobs; i += 3)
+    {
         // create the first process
         process::child c0 = launch_proc(i, exe, base_dir, env);
 
         // attach second process to first one
         hpx::future<int> r0 = c0.wait_for_exit();
         hpx::future<process::child> c1 =
-                r0.then([i, exe, base_dir, env](hpx::future<int> r) {
-                    return launch_proc(i + 1, exe, base_dir, env);
-                });
+            r0.then([i, exe, base_dir, env](hpx::future<int> r) {
+                return launch_proc(i + 1, exe, base_dir, env);
+            });
 
         // attach third process to second one
         hpx::future<int> r1 =
-                c1.then([i, exe, base_dir, env](hpx::future<process::child> c) {
-                    return c.get().wait_for_exit();
-                });
+            c1.then([i, exe, base_dir, env](hpx::future<process::child> c) {
+                return c.get().wait_for_exit();
+            });
         hpx::future<process::child> c2 =
-                r1.then([i, exe, base_dir, env](hpx::future<int> r) {
-                    return launch_proc(i + 2, exe, base_dir, env);
-                });
+            r1.then([i, exe, base_dir, env](hpx::future<int> r) {
+                return launch_proc(i + 2, exe, base_dir, env);
+            });
         procs.push_back(std::move(c2));
     }
 
     typedef hpx::components::client<launch_process::test_server> job_type;
     std::vector<job_type> jobs;
-    for (int i =0; i < num_of_jobs; i++)
+    for (int i = 0; i < num_of_jobs; i++)
         jobs.push_back(create_job(i));
 
-    for (auto && c : procs) {
+    for (auto&& c : procs)
+    {
         hpx::future<int> exit_code = c.get().wait_for_exit();
         HPX_TEST_EQ(exit_code.get(), 42);
     }
 
-    for (auto t:jobs) {
+    for (auto t : jobs)
+    {
         hpx::future<std::string> f0 =
-                hpx::async(launch_process_get_message_action(), t);
+            hpx::async(launch_process_get_message_action(), t);
         HPX_TEST_EQ(f0.get(), std::string("accessed"));
     }
 
@@ -195,18 +198,18 @@ int main(int argc, char* argv[])
     // add command line option which controls the random number generator seed
     using namespace boost::program_options;
     options_description desc_commandline(
-            "Usage: " HPX_APPLICATION_STRING " [options]");
+        "Usage: " HPX_APPLICATION_STRING " [options]");
 
     desc_commandline.add_options()("launch,l", value<std::string>(),
-                                   "the process that will be launched and which connects back");
+        "the process that will be launched and which connects back");
 
     // This explicitly enables the component we depend on (it is disabled by
     // default to avoid being loaded outside of this test).
     std::vector<std::string> const cfg = {
-            "hpx.components.launch_process_test_server.enabled!=1"};
+        "hpx.components.launch_process_test_server.enabled!=1"};
 
     HPX_TEST_EQ_MSG(hpx::init(desc_commandline, argc, argv, cfg), 0,
-                    "HPX main exited with non-zero status");
+        "HPX main exited with non-zero status");
 
     return hpx::util::report_errors();
 }

@@ -167,35 +167,36 @@ int hpx_main(boost::program_options::variables_map& vm)
 
     typedef hpx::components::client<launch_process::test_server> job_type;
 
-//    job_type t0 = create_job(0);
-//    job_type t1 = create_job(1);
-//    job_type t2 = create_job(2);
-//
-//
+    //    job_type t0 = create_job(0);
+    //    job_type t1 = create_job(1);
+    //    job_type t2 = create_job(2);
+    //
+    //
     std::vector<job_type> jobs;
-//    jobs.push_back(t0);
-//    jobs.push_back(t1);
-//    jobs.push_back(t2);
+    //    jobs.push_back(t0);
+    //    jobs.push_back(t1);
+    //    jobs.push_back(t2);
 
-    for (int i =0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
         jobs.push_back(create_job(i));
 
     hpx::future<int> exit_code = c2.get().wait_for_exit();
     HPX_TEST_EQ(exit_code.get(), 42);
 
-//    hpx::future<std::string> f0 =
-//        hpx::async(launch_process_get_message_action(), t0);
-//    HPX_TEST_EQ(f0.get(), std::string("accessed"));
-//    hpx::future<std::string> f1 =
-//        hpx::async(launch_process_get_message_action(), t1);
-//    HPX_TEST_EQ(f1.get(), std::string("accessed"));
-//    hpx::future<std::string> f2 =
-//        hpx::async(launch_process_get_message_action(), t2);
-//    HPX_TEST_EQ(f2.get(), std::string("accessed"));
+    //    hpx::future<std::string> f0 =
+    //        hpx::async(launch_process_get_message_action(), t0);
+    //    HPX_TEST_EQ(f0.get(), std::string("accessed"));
+    //    hpx::future<std::string> f1 =
+    //        hpx::async(launch_process_get_message_action(), t1);
+    //    HPX_TEST_EQ(f1.get(), std::string("accessed"));
+    //    hpx::future<std::string> f2 =
+    //        hpx::async(launch_process_get_message_action(), t2);
+    //    HPX_TEST_EQ(f2.get(), std::string("accessed"));
 
-    for (auto t:jobs) {
+    for (auto t : jobs)
+    {
         hpx::future<std::string> f0 =
-                hpx::async(launch_process_get_message_action(), t);
+            hpx::async(launch_process_get_message_action(), t);
         HPX_TEST_EQ(f0.get(), std::string("accessed"));
     }
 
