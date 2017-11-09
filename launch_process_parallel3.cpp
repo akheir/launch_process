@@ -144,7 +144,7 @@ int hpx_main(boost::program_options::variables_map& vm)
 
     // set up environment for launched executable
     std::vector<std::string> env = get_environment();    // current environment
-    constexpr int num_of_jobs = 3;
+    constexpr int num_of_jobs = 12;
     std::vector<hpx::future<process::child>> procs;
 
     for (int i = 0; i < num_of_jobs; i += 3)
